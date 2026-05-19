@@ -111,4 +111,4 @@ Los textos escolares son propiedad del **Ministerio de Educación de Chile** y s
 
 ## Licencia
 
-MIT
+[MIT](LICENSE) — libre para usar, modificar y distribuir. Se agradece mantener el aviso de copyright.
