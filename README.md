@@ -2,7 +2,7 @@
 
 Script Python para descargar automáticamente los textos escolares oficiales del Ministerio de Educación de Chile desde el [Catálogo de Textos Escolares](https://catalogotextos.mineduc.cl).
 
-Cubre desde Pre-Kínder hasta 4° Medio, todas las asignaturas disponibles, organizando los archivos por curso y asignatura.
+Cubre desde Pre-Kínder hasta 4° Medio, todas las asignaturas disponibles. Los archivos se organizan por curso y asignatura usando los **nombres oficiales del catálogo** y el **código oficial del Mineduc** como nombre de archivo.
 
 ---
 
@@ -24,7 +24,7 @@ python3 -m playwright install chromium
 python3 descargar_catalogo.py --rbd TU_RBD --password TU_CLAVE_SIGE
 ```
 
-Por defecto descarga **todo el catálogo**. Puedes filtrar por nivel:
+Por defecto descarga **todo el catálogo**. Puedes filtrar por nivel con `--nivel`:
 
 | Parámetro | Cursos |
 |---|---|
@@ -32,8 +32,6 @@ Por defecto descarga **todo el catálogo**. Puedes filtrar por nivel:
 | `--nivel pre-escolar` | Pre-Kínder y Kínder |
 | `--nivel basica` | 1° a 6° Básico |
 | `--nivel media` | 7° Básico a 4° Medio |
-
-Ejemplos:
 
 ```bash
 # Solo educación básica
@@ -50,31 +48,31 @@ python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel pre-escolar
 
 ## Estructura de salida
 
-Los archivos se guardan en `Textos Mineduc/` organizados por curso y asignatura. Cada PDF usa el **código oficial del Mineduc** como nombre de archivo, junto a su imagen de portada:
+Los archivos se guardan en `Textos Mineduc/` con la estructura real del catálogo. Cada PDF usa el código oficial del Mineduc como nombre. Las portadas se guardan en una subcarpeta `portadas/` dentro de cada asignatura:
 
 ```
 Textos Mineduc/
-  1_basico/
-    lenguaje_y_comunicacion/
+  1º Básico/
+    Lenguaje y Comunicación/
       LYCME26E1B.pdf
       portadas/
         LYCME26E1B.jpg
-    ciencias_naturales/
+    Ciencias Naturales/
       CNME26E1B.pdf
       portadas/
         CNME26E1B.jpg
-    matematica/
+    Matemática/
       MATME26E1B.pdf
       portadas/
         MATME26E1B.jpg
-  2_basico/
-    historia_geografia_y_ciencias_sociales/
+  2º Básico/
+    Historia, Geografía y Ciencias Sociales/
       HGME26E2B.pdf
       portadas/
         HGME26E2B.jpg
   ...
-  1_medio/
-    biologia/
+  1° Medio/
+    Biología/
       BIME26E1M.pdf
       portadas/
         BIME26E1M.jpg
@@ -84,10 +82,10 @@ Textos Mineduc/
 
 ## Cómo funciona
 
-1. **Login automático** — abre Chromium, completa el formulario de establecimiento y maneja el reCAPTCHA del sitio (~15 segundos).
-2. **Recolección** — consulta el endpoint interno del catálogo por cada combinación de curso y asignatura, extrayendo los IDs de descarga.
-3. **Descarga** — descarga cada PDF con barra de progreso, 3 reintentos automáticos y timeout de 5 minutos por archivo.
-4. **Re-ejecutable** — los archivos ya descargados se omiten, por lo que se puede interrumpir y continuar sin problema.
+1. **Login automático** — abre Chromium, completa el formulario de establecimiento y maneja el reCAPTCHA del sitio (~15 segundos). El navegador se cierra una vez autenticado.
+2. **Recolección** — consulta el endpoint interno del catálogo por cada combinación de curso y asignatura, extrayendo los IDs y códigos de descarga.
+3. **Descarga** — descarga cada PDF con barra de progreso, 3 reintentos automáticos y timeout de 5 minutos por archivo. También descarga la imagen de portada de cada texto.
+4. **Re-ejecutable** — los archivos ya descargados se omiten, por lo que se puede interrumpir y continuar en cualquier momento sin duplicados.
 
 ---
 
