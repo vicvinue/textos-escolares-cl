@@ -57,22 +57,27 @@ Textos Mineduc/
   1_basico/
     lenguaje_y_comunicacion/
       LYCME26E1B.pdf
-      LYCME26E1B.jpg
+      portadas/
+        LYCME26E1B.jpg
     ciencias_naturales/
       CNME26E1B.pdf
-      CNME26E1B.jpg
+      portadas/
+        CNME26E1B.jpg
     matematica/
       MATME26E1B.pdf
-      MATME26E1B.jpg
+      portadas/
+        MATME26E1B.jpg
   2_basico/
     historia_geografia_y_ciencias_sociales/
       HGME26E2B.pdf
-      HGME26E2B.jpg
+      portadas/
+        HGME26E2B.jpg
   ...
   1_medio/
     biologia/
       BIME26E1M.pdf
-      BIME26E1M.jpg
+      portadas/
+        BIME26E1M.jpg
 ```
 
 ---

@@ -332,9 +332,11 @@ def main():
         if download_pdf(session, item["id"], dest):
             size_mb = dest.stat().st_size / 1_048_576
             print(f"      ✓ {item['filename']}  ({size_mb:.1f} MB)")
-            # Descargar portada junto al PDF
+            # Descargar portada en subcarpeta portadas/
             if item.get("img_url") and item.get("img_file"):
-                img_dest = subdir / item["img_file"]
+                portadas_dir = subdir / "portadas"
+                portadas_dir.mkdir(exist_ok=True)
+                img_dest = portadas_dir / item["img_file"]
                 download_image(session, item["img_url"], img_dest)
             ok += 1
         else:
