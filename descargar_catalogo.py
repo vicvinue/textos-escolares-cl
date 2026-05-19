@@ -45,12 +45,12 @@ def login_playwright(rbd: str, password: str) -> dict:
         page.wait_for_selector("#establecimiento_rbd", timeout=15000)
         time.sleep(5)
 
-        # Activar tab Establecimiento (click en el tab link)
+        # Activar tab Establecimiento
         try:
             page.click('a[href="#tab-establecimiento"], [href*="establecimiento"], li:has([data-tipo-usuario="establecimiento"]) a', timeout=5000)
             time.sleep(1)
         except PWTimeout:
-            pass
+            print("  WARN: no se encontró el tab Establecimiento, continuando igual")
 
         # Rellenar RBD y contraseña
         page.fill("#establecimiento_rbd",      rbd)
@@ -64,9 +64,14 @@ def login_playwright(rbd: str, password: str) -> dict:
         try:
             page.wait_for_function("!window.location.href.includes('login')", timeout=20000)
         except PWTimeout:
-            pass
+            print(f"  WARN: timeout esperando redirección — URL actual: {page.url}")
 
         if "login" in page.url:
+            try:
+                error_text = page.locator(".alert, .error, .invalid-feedback").first.inner_text()
+                print(f"  Error en página: {error_text}")
+            except Exception:
+                pass
             browser.close()
             return {}
 
