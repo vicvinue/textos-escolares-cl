@@ -100,4 +100,4 @@ Los textos escolares son propiedad del **Ministerio de Educación de Chile** y s
 
 ## Licencia
 
-MIT — libre para usar, modificar y distribuir el script.
+MIT
