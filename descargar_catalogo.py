@@ -20,7 +20,7 @@ BASE_URL     = "https://catalogotextos.mineduc.cl/catalogo-textos"
 LOGIN_URL    = f"{BASE_URL}/login/login"
 JSON_URL     = f"{BASE_URL}/privado/privadoJson"
 DOWNLOAD_URL = f"{BASE_URL}/privado/descargar"
-UPLOADS_DIR  = Path(__file__).parent / "uploads"
+UPLOADS_DIR  = Path(__file__).parent / "Textos Mineduc"
 
 
 def slugify(text: str) -> str:

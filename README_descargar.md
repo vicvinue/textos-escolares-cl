@@ -52,10 +52,10 @@ python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel media
 
 ## Estructura de salida
 
-Los PDFs se guardan en `uploads/` organizados por curso y asignatura:
+Los PDFs se guardan en `Textos Mineduc/` organizados por curso y asignatura:
 
 ```
-uploads/
+Textos Mineduc/
   1_basico/
     lenguaje_y_comunicacion/
       texto_del_estudiante_3261.pdf
@@ -75,7 +75,7 @@ uploads/
 
 - **Login automático**: abre Chromium visible, rellena RBD y contraseña, y maneja el reCAPTCHA del sitio.
 - **Progreso por archivo**: muestra barra de avance con MB descargados.
-- **Re-ejecutable**: omite archivos que ya existen en `uploads/`.
+- **Re-ejecutable**: omite archivos que ya existen en `Textos Mineduc/`.
 - **Reintentos**: 3 intentos automáticos por archivo con 5 segundos de espera entre cada uno.
 
 ## Notas

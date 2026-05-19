@@ -50,10 +50,10 @@ python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel pre-escolar
 
 ## Estructura de salida
 
-Los archivos se guardan en `uploads/` organizados por curso y asignatura. Cada PDF usa el **código oficial del Mineduc** como nombre de archivo, junto a su imagen de portada:
+Los archivos se guardan en `Textos Mineduc/` organizados por curso y asignatura. Cada PDF usa el **código oficial del Mineduc** como nombre de archivo, junto a su imagen de portada:
 
 ```
-uploads/
+Textos Mineduc/
   1_basico/
     lenguaje_y_comunicacion/
       LYCME26E1B.pdf
