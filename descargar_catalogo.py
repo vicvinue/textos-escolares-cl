@@ -10,11 +10,15 @@ Uso: python3 descargar_catalogo.py --rbd 12345 --password TuClave
 import argparse
 import re
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+
+_print_lock = threading.Lock()
 
 BASE_URL     = "https://catalogotextos.mineduc.cl/catalogo-textos"
 LOGIN_URL    = f"{BASE_URL}/login/login"
@@ -153,34 +157,33 @@ def download_pdf(session: requests.Session, id_material_asociado: str,
         try:
             r = session.get(url, stream=True, timeout=300)
             if r.status_code != 200:
-                print(f"      HTTP {r.status_code}")
+                with _print_lock:
+                    print(f"      HTTP {r.status_code}")
                 return False
             content_type = r.headers.get("Content-Type", "")
             if "pdf" not in content_type and "octet" not in content_type:
-                print(f"      Content-Type inesperado: {content_type}")
+                with _print_lock:
+                    print(f"      Content-Type inesperado: {content_type}")
                 return False
 
-            total   = int(r.headers.get("Content-Length", 0))
+            total      = int(r.headers.get("Content-Length", 0))
             downloaded = 0
-            tmp = dest.with_suffix(".tmp")
+            tmp        = dest.with_suffix(".tmp")
 
             with open(tmp, "wb") as f:
                 for chunk in r.iter_content(chunk_size=131072):
                     f.write(chunk)
                     downloaded += len(chunk)
-                    if total:
-                        pct  = downloaded / total * 100
-                        done = int(pct / 5)
-                        bar  = "█" * done + "░" * (20 - done)
-                        print(f"\r      [{bar}] {pct:4.0f}%  {downloaded/1_048_576:.1f}/{total/1_048_576:.1f} MB", end="", flush=True)
-                    else:
-                        print(f"\r      {downloaded/1_048_576:.1f} MB", end="", flush=True)
 
-            print()  # salto de línea al terminar
+            size_str = (f"{downloaded/1_048_576:.1f}/{total/1_048_576:.1f} MB"
+                        if total else f"{downloaded/1_048_576:.1f} MB")
+            with _print_lock:
+                print(f"      ✓ {dest.name}  ({size_str})")
             tmp.rename(dest)
             return dest.stat().st_size > 10_000
         except Exception as e:
-            print(f"\n      intento {attempt}/3 falló: {e}")
+            with _print_lock:
+                print(f"      intento {attempt}/3 falló: {e}")
             if attempt < 3:
                 time.sleep(5)
     return False
@@ -366,35 +369,52 @@ def main():
         print("No se encontraron libros. Revisa credenciales o disponibilidad del catálogo.")
         sys.exit(1)
 
-    # ── Descargar ──────────────────────────────────────────────────────────────
-    print("\n=== Descargando ===")
-    ok = fail = skip = 0
+    # ── Descargar (máx. 2 en paralelo) ────────────────────────────────────────
+    print("\n=== Descargando (2 en paralelo) ===")
+    skip = 0
+    pending = []
 
-    for i, item in enumerate(to_download, 1):
-        subdir = item["subdir"]
-        subdir.mkdir(parents=True, exist_ok=True)
-        dest = subdir / item["filename"]
-
+    for item in to_download:
+        item["subdir"].mkdir(parents=True, exist_ok=True)
+        dest = item["subdir"] / item["filename"]
         if dest.exists():
-            print(f"[{i}/{len(to_download)}] EXISTE   {item['nivel']} / {item['sector']} / {item['filename']}")
+            with _print_lock:
+                print(f"EXISTE   {item['nivel']} / {item['sector']} / {item['filename']}")
             skip += 1
-            continue
+        else:
+            pending.append(item)
 
-        print(f"[{i}/{len(to_download)}] {item['nivel']} / {item['sector']} — {item['titulo'][:45]}")
-        if download_pdf(session, item["id"], dest):
-            size_mb = dest.stat().st_size / 1_048_576
-            print(f"      ✓ {item['filename']}  ({size_mb:.1f} MB)")
-            # Descargar portada en subcarpeta portadas/
+    # Cada hilo usa su propia sesión con las mismas cookies
+    session_cookies = dict(session.cookies)
+
+    def _worker(item: dict) -> str:
+        s = requests.Session()
+        s.headers.update({"User-Agent": "Mozilla/5.0"})
+        for name, value in session_cookies.items():
+            s.cookies.set(name, value, domain=".catalogotextos.mineduc.cl")
+
+        subdir = item["subdir"]
+        dest   = subdir / item["filename"]
+        with _print_lock:
+            print(f"↓  {item['nivel']} / {item['sector']} — {item['titulo'][:45]}")
+
+        if download_pdf(s, item["id"], dest):
             if item.get("img_url") and item.get("img_file"):
                 portadas_dir = subdir / "portadas"
                 portadas_dir.mkdir(exist_ok=True)
-                img_dest = portadas_dir / item["img_file"]
-                download_image(session, item["img_url"], img_dest)
-            ok += 1
-        else:
+                download_image(s, item["img_url"], portadas_dir / item["img_file"])
+            return "ok"
+        with _print_lock:
             print(f"      ✗ FALLO [{item['id']}]")
-            fail += 1
-        time.sleep(0.3)
+        return "fail"
+
+    ok = fail = 0
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        for result in as_completed(executor.submit(_worker, item) for item in pending):
+            if result.result() == "ok":
+                ok += 1
+            else:
+                fail += 1
 
     print(f"\n=== Resultado: {ok} descargados, {skip} ya existían, {fail} fallaron ===")
     print(f"PDFs en: {UPLOADS_DIR}")
