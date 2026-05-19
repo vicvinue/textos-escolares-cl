@@ -263,7 +263,15 @@ def main():
                     seen.add(mid)
 
                     tipo = mat.get("tipoMaterialDescripcion", "texto")
-                    filename = f"{slugify(tipo)}_{mid}.pdf"
+                    base = slugify(tipo)
+                    subdir = UPLOADS_DIR / slugify(label_nivel) / slugify(label_sector)
+                    # Evitar colisión de nombre dentro de la misma carpeta
+                    used = {item["filename"] for item in to_download if item["subdir"] == subdir}
+                    filename = f"{base}.pdf"
+                    n = 2
+                    while filename in used:
+                        filename = f"{base}_{n}.pdf"
+                        n += 1
                     to_download.append({
                         "id":       mid,
                         "nivel":    label_nivel,
@@ -271,7 +279,7 @@ def main():
                         "titulo":   titulo,
                         "tipo":     tipo,
                         "filename": filename,
-                        "subdir":   UPLOADS_DIR / slugify(label_nivel) / slugify(label_sector),
+                        "subdir":   subdir,
                     })
                     print(f"  + {label_nivel} / {label_sector} / {tipo} — {titulo[:50]} [{mid}]")
 
