@@ -187,22 +187,17 @@ def download_pdf(session: requests.Session, id_material_asociado: str,
 
 
 NIVEL_FILTERS = {
-    "todos": {
-        "desc": "Todos los niveles",
-        "match": lambda l: True,
-    },
     "pre-escolar": {
-        "desc": "Pre-Kínder y Kínder",
+        "desc": "Pre-escolar (Pre-Kínder y Kínder)",
         "match": lambda l: any(x in l.lower() for x in ["kínder","kinder","pre-kínder","pre-kinder","transición","transicion"]),
     },
     "basica": {
-        "desc": "1° a 6° Básico",
-        "match": lambda l: any(x in l for x in ["Básico","básico"]) and any(x in l for x in ["1","2","3","4","5","6"]),
+        "desc": "Básica (1° a 8° Básico)",
+        "match": lambda l: any(x in l for x in ["Básico","básico"]) and any(x in l for x in ["1","2","3","4","5","6","7","8"]),
     },
     "media": {
-        "desc": "7° Básico a 4° Medio",
-        "match": lambda l: (any(x in l for x in ["Básico","básico"]) and any(x in l for x in ["7","8"]))
-                        or  any(x in l for x in ["Medio","medio"]),
+        "desc": "Media (1° a 4° Medio)",
+        "match": lambda l: any(x in l for x in ["Medio","medio"]),
     },
 }
 
@@ -210,33 +205,54 @@ NIVEL_FILTERS = {
 def menu_seleccion_niveles(niveles: dict) -> set[str]:
     """Muestra menú interactivo y retorna el set de idNivel seleccionados."""
     lista = list(niveles.items())  # [(id, label), ...]
+    grupos = list(NIVEL_FILTERS.items())  # [(key, {desc, match}), ...]
+    letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
     print("\n=== Selección de niveles ===\n")
     print("  [0] Todos")
+    print("  ── Grupos ──────────────────────────────")
+    for i, (_, filtro) in enumerate(grupos):
+        print(f"  [{letras[i]}] {filtro['desc']}")
+    print("  ── Por nivel ───────────────────────────")
     for i, (_, label) in enumerate(lista, 1):
         print(f"  [{i}] {label}")
 
     print()
     while True:
-        raw = input("Ingresa los números separados por coma (ej: 3,4,5) o 0 para todos: ").strip()
+        raw = input("Ingresa opciones separadas por coma (ej: A, 3,4 o 0 para todos): ").strip()
         if not raw:
             continue
-        try:
-            seleccion = [int(x.strip()) for x in raw.split(",")]
-        except ValueError:
-            print("  Entrada inválida, usa solo números separados por coma.")
-            continue
 
-        if 0 in seleccion:
+        tokens = [t.strip() for t in raw.split(",")]
+        if "0" in tokens:
             return {id_ for id_, _ in lista}
 
-        invalidos = [n for n in seleccion if n < 1 or n > len(lista)]
-        if invalidos:
-            print(f"  Números fuera de rango: {invalidos}. Elige entre 1 y {len(lista)}.")
+        elegidos: set[str] = set()
+        invalido = False
+        for token in tokens:
+            if token.upper() in letras[:len(grupos)]:
+                filtro = grupos[letras.index(token.upper())][1]
+                elegidos |= {id_ for id_, label in lista if filtro["match"](label)}
+            else:
+                try:
+                    n = int(token)
+                except ValueError:
+                    print(f"  Entrada inválida: '{token}'")
+                    invalido = True
+                    break
+                if n < 1 or n > len(lista):
+                    print(f"  Número fuera de rango: {n}. Elige entre 1 y {len(lista)}.")
+                    invalido = True
+                    break
+                elegidos.add(lista[n - 1][0])
+
+        if invalido:
+            continue
+        if not elegidos:
+            print("  No se seleccionó ningún nivel.")
             continue
 
-        elegidos = {lista[n - 1][0] for n in seleccion}
-        labels   = [niveles[id_] for id_ in elegidos]
+        labels = [niveles[id_] for id_ in elegidos]
         print(f"\n  Seleccionados: {', '.join(labels)}\n")
         return elegidos
 
@@ -245,9 +261,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--rbd",      required=True)
     parser.add_argument("--password", required=True)
-    parser.add_argument("--nivel", default=None,
-                        choices=list(NIVEL_FILTERS.keys()),
-                        help="Nivel a descargar sin menú interactivo: todos | pre-escolar | basica | media")
     args = parser.parse_args()
 
     UPLOADS_DIR.mkdir(exist_ok=True)
@@ -285,12 +298,7 @@ def main():
     csrf_header = meta_header["content"] if meta_header else "X-CSRF-TOKEN"
 
     # ── Selección de niveles ───────────────────────────────────────────────────
-    if args.nivel:
-        filtro = NIVEL_FILTERS[args.nivel]
-        niveles_sel = {id_ for id_, label in niveles.items() if filtro["match"](label)}
-        print(f"\nNivel: {filtro['desc']}")
-    else:
-        niveles_sel = menu_seleccion_niveles(niveles)
+    niveles_sel = menu_seleccion_niveles(niveles)
 
     # ── Recolectar todos los libros ────────────────────────────────────────────
     labels_sel = [niveles[id_] for id_ in niveles_sel]
