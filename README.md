@@ -24,25 +24,26 @@ python3 -m playwright install chromium
 python3 descargar_catalogo.py --rbd TU_RBD --password TU_CLAVE_SIGE
 ```
 
-Por defecto descarga **todo el catálogo**. Puedes filtrar por nivel con `--nivel`:
+Al ejecutar el script aparece un menú interactivo para elegir qué niveles descargar:
 
-| Parámetro | Cursos |
-|---|---|
-| *(sin `--nivel`)* | Todo el catálogo |
-| `--nivel pre-escolar` | Pre-Kínder y Kínder |
-| `--nivel basica` | 1° a 6° Básico |
-| `--nivel media` | 7° Básico a 4° Medio |
-
-```bash
-# Solo educación básica
-python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel basica
-
-# Solo educación media
-python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel media
-
-# Solo pre-escolar
-python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel pre-escolar
 ```
+=== Selección de niveles ===
+
+  [0] Todos
+  ── Grupos ──────────────────────────────
+  [A] Pre-escolar (Pre-Kínder y Kínder)
+  [B] Básica (1° a 8° Básico)
+  [C] Media (1° a 4° Medio)
+  ── Por nivel ───────────────────────────
+  [1] Pre-Kínder
+  [2] Kínder
+  [3] 1º Básico
+  ...
+
+Ingresa opciones separadas por coma (ej: A, 3,4 o 0 para todos):
+```
+
+Se puede ingresar una letra de grupo (`A`, `B`, `C`), números de niveles individuales, o combinarlos (`B,5,6`). Ingresa `0` para descargar todo el catálogo.
 
 ---
 
