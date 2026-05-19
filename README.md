@@ -85,8 +85,17 @@ Textos Mineduc/
 
 1. **Login automático** — abre Chromium, completa el formulario de establecimiento y maneja el reCAPTCHA del sitio (~15 segundos). El navegador se cierra una vez autenticado.
 2. **Recolección** — consulta el endpoint interno del catálogo por cada combinación de curso y asignatura, extrayendo los IDs y códigos de descarga.
-3. **Descarga** — descarga cada PDF con barra de progreso, 3 reintentos automáticos y timeout de 5 minutos por archivo. También descarga la imagen de portada de cada texto.
+3. **Descarga en paralelo** — descarga 2 PDFs simultáneamente, cada uno con su propia barra de progreso en vivo, 3 reintentos automáticos y timeout de 5 minutos por archivo. También descarga la imagen de portada de cada texto.
 4. **Re-ejecutable** — los archivos ya descargados se omiten, por lo que se puede interrumpir y continuar en cualquier momento sin duplicados.
+
+Durante la descarga el terminal muestra algo así:
+
+```
+↓  1° Básico / Lenguaje y Comunicación — Texto del Estudiante
+↓  1° Básico / Matemática — Texto del Estudiante
+  [████████████░░░░░░░░]  60%  6.2/10.3 MB  LYCME26E1B.pdf
+  [████░░░░░░░░░░░░░░░░]  20%  2.1/10.3 MB  MATME26E1B.pdf
+```
 
 ---
 
