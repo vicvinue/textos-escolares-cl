@@ -207,13 +207,47 @@ NIVEL_FILTERS = {
 }
 
 
+def menu_seleccion_niveles(niveles: dict) -> set[str]:
+    """Muestra menú interactivo y retorna el set de idNivel seleccionados."""
+    lista = list(niveles.items())  # [(id, label), ...]
+
+    print("\n=== Selección de niveles ===\n")
+    print("  [0] Todos")
+    for i, (_, label) in enumerate(lista, 1):
+        print(f"  [{i}] {label}")
+
+    print()
+    while True:
+        raw = input("Ingresa los números separados por coma (ej: 3,4,5) o 0 para todos: ").strip()
+        if not raw:
+            continue
+        try:
+            seleccion = [int(x.strip()) for x in raw.split(",")]
+        except ValueError:
+            print("  Entrada inválida, usa solo números separados por coma.")
+            continue
+
+        if 0 in seleccion:
+            return {id_ for id_, _ in lista}
+
+        invalidos = [n for n in seleccion if n < 1 or n > len(lista)]
+        if invalidos:
+            print(f"  Números fuera de rango: {invalidos}. Elige entre 1 y {len(lista)}.")
+            continue
+
+        elegidos = {lista[n - 1][0] for n in seleccion}
+        labels   = [niveles[id_] for id_ in elegidos]
+        print(f"\n  Seleccionados: {', '.join(labels)}\n")
+        return elegidos
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--rbd",      required=True)
     parser.add_argument("--password", required=True)
-    parser.add_argument("--nivel", default="todos",
+    parser.add_argument("--nivel", default=None,
                         choices=list(NIVEL_FILTERS.keys()),
-                        help="Rango de cursos a descargar (default: todos)")
+                        help="Nivel a descargar sin menú interactivo: todos | pre-escolar | basica | media")
     args = parser.parse_args()
 
     UPLOADS_DIR.mkdir(exist_ok=True)
@@ -242,9 +276,6 @@ def main():
         print("  Puede que el login haya fallado silenciosamente.")
         sys.exit(1)
 
-    print(f"Niveles:  {niveles}")
-    print(f"Sectores: {sectores}")
-
     # Obtener CSRF para las peticiones AJAX
     r_home = session.get(f"{BASE_URL}/home/index")
     soup   = BeautifulSoup(r_home.text, "html.parser")
@@ -253,14 +284,22 @@ def main():
     csrf_token  = meta_token["content"]  if meta_token  else ""
     csrf_header = meta_header["content"] if meta_header else "X-CSRF-TOKEN"
 
+    # ── Selección de niveles ───────────────────────────────────────────────────
+    if args.nivel:
+        filtro = NIVEL_FILTERS[args.nivel]
+        niveles_sel = {id_ for id_, label in niveles.items() if filtro["match"](label)}
+        print(f"\nNivel: {filtro['desc']}")
+    else:
+        niveles_sel = menu_seleccion_niveles(niveles)
+
     # ── Recolectar todos los libros ────────────────────────────────────────────
-    filtro = NIVEL_FILTERS[args.nivel]
-    print(f"\n=== Recolectando libros — {filtro['desc']} ===")
+    labels_sel = [niveles[id_] for id_ in niveles_sel]
+    print(f"\n=== Recolectando libros ({len(niveles_sel)} niveles) ===")
     to_download = []
     seen = set()
 
     for id_nivel, label_nivel in niveles.items():
-        if not filtro["match"](label_nivel):
+        if id_nivel not in niveles_sel:
             continue
 
         for id_sector, label_sector in sectores.items():
