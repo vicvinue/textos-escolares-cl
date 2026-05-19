@@ -50,24 +50,29 @@ python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel pre-escolar
 
 ## Estructura de salida
 
-Los PDFs se guardan en `uploads/` organizados por curso y asignatura:
+Los archivos se guardan en `uploads/` organizados por curso y asignatura. Cada PDF usa el **código oficial del Mineduc** como nombre de archivo, junto a su imagen de portada:
 
 ```
 uploads/
   1_basico/
     lenguaje_y_comunicacion/
-      texto_del_estudiante_3261.pdf
+      LYCME26E1B.pdf
+      LYCME26E1B.jpg
     ciencias_naturales/
-      texto_del_estudiante_3412.pdf
+      CNME26E1B.pdf
+      CNME26E1B.jpg
     matematica/
-      texto_del_estudiante_3089.pdf
+      MATME26E1B.pdf
+      MATME26E1B.jpg
   2_basico/
     historia_geografia_y_ciencias_sociales/
-      texto_del_estudiante_3190.pdf
+      HGME26E2B.pdf
+      HGME26E2B.jpg
   ...
   1_medio/
     biologia/
-      texto_del_estudiante_4021.pdf
+      BIME26E1M.pdf
+      BIME26E1M.jpg
 ```
 
 ---
