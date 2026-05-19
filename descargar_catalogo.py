@@ -279,7 +279,7 @@ def main():
                     seen.add(mid)
 
                     tipo   = mat.get("tipoMaterialDescripcion", "texto")
-                    subdir = UPLOADS_DIR / slugify(label_nivel) / slugify(label_sector)
+                    subdir = UPLOADS_DIR / label_nivel / label_sector
 
                     # Nombre basado en código oficial (ej: LYCME26E1B.pdf)
                     # Si hay >1 PDF por libro, añadir sufijo del tipo
