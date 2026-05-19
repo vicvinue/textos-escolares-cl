@@ -18,7 +18,36 @@ import requests
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
-_print_lock = threading.Lock()
+# ── Display concurrente con barras de progreso ────────────────────────────
+_display_lock  = threading.Lock()
+_slot_state: dict[int, dict | None] = {0: None, 1: None}
+_n_prog_lines  = 0      # líneas de progreso actualmente en pantalla
+_last_redraw_t = 0.0    # monotonic time del último redraw
+
+
+def _fmt_bar(name: str, downloaded: int, total: int) -> str:
+    if total:
+        pct  = downloaded / total * 100
+        done = int(pct / 5)
+        bar  = "█" * done + "░" * (20 - done)
+        return f"  [{bar}] {pct:4.0f}%  {downloaded/1_048_576:.1f}/{total/1_048_576:.1f} MB  {name}"
+    return f"  {downloaded/1_048_576:.1f} MB  {name}"
+
+
+def _redraw(msg: str | None = None) -> None:
+    """Redibuja las líneas de progreso activas. Si msg != None, lo imprime encima.
+    Debe llamarse con _display_lock tomado."""
+    global _n_prog_lines, _last_redraw_t
+    if _n_prog_lines:
+        sys.stdout.write(f"\033[{_n_prog_lines}A\033[J")
+    if msg is not None:
+        sys.stdout.write(msg + "\n")
+    active = [(s, v) for s, v in sorted(_slot_state.items()) if v is not None]
+    for _, state in active:
+        sys.stdout.write(_fmt_bar(state["name"], state["downloaded"], state["total"]) + "\n")
+    _n_prog_lines  = len(active)
+    _last_redraw_t = time.monotonic()
+    sys.stdout.flush()
 
 BASE_URL     = "https://catalogotextos.mineduc.cl/catalogo-textos"
 LOGIN_URL    = f"{BASE_URL}/login/login"
@@ -151,39 +180,43 @@ def fetch_books(session: requests.Session, id_nivel: str, id_sector: str,
 
 
 def download_pdf(session: requests.Session, id_material_asociado: str,
-                 dest: Path) -> bool:
+                 dest: Path, on_progress=None) -> bool:
     url = f"{DOWNLOAD_URL}/{id_material_asociado}"
     for attempt in range(1, 4):
         try:
             r = session.get(url, stream=True, timeout=300)
             if r.status_code != 200:
-                with _print_lock:
-                    print(f"      HTTP {r.status_code}")
+                with _display_lock:
+                    _redraw(f"      HTTP {r.status_code}")
                 return False
             content_type = r.headers.get("Content-Type", "")
             if "pdf" not in content_type and "octet" not in content_type:
-                with _print_lock:
-                    print(f"      Content-Type inesperado: {content_type}")
+                with _display_lock:
+                    _redraw(f"      Content-Type inesperado: {content_type}")
                 return False
 
             total      = int(r.headers.get("Content-Length", 0))
             downloaded = 0
             tmp        = dest.with_suffix(".tmp")
+            last_draw  = 0.0
 
             with open(tmp, "wb") as f:
                 for chunk in r.iter_content(chunk_size=131072):
                     f.write(chunk)
                     downloaded += len(chunk)
+                    if on_progress:
+                        now = time.monotonic()
+                        if now - last_draw >= 0.15:
+                            on_progress(downloaded, total)
+                            last_draw = now
 
-            size_str = (f"{downloaded/1_048_576:.1f}/{total/1_048_576:.1f} MB"
-                        if total else f"{downloaded/1_048_576:.1f} MB")
-            with _print_lock:
-                print(f"      ✓ {dest.name}  ({size_str})")
+            if on_progress:
+                on_progress(downloaded, total)  # actualización final al 100%
             tmp.rename(dest)
             return dest.stat().st_size > 10_000
         except Exception as e:
-            with _print_lock:
-                print(f"      intento {attempt}/3 falló: {e}")
+            with _display_lock:
+                _redraw(f"      intento {attempt}/3 falló: {e}")
             if attempt < 3:
                 time.sleep(5)
     return False
@@ -378,8 +411,7 @@ def main():
         item["subdir"].mkdir(parents=True, exist_ok=True)
         dest = item["subdir"] / item["filename"]
         if dest.exists():
-            with _print_lock:
-                print(f"EXISTE   {item['nivel']} / {item['sector']} / {item['filename']}")
+            print(f"EXISTE   {item['nivel']} / {item['sector']} / {item['filename']}")
             skip += 1
         else:
             pending.append(item)
@@ -395,18 +427,35 @@ def main():
 
         subdir = item["subdir"]
         dest   = subdir / item["filename"]
-        with _print_lock:
-            print(f"↓  {item['nivel']} / {item['sector']} — {item['titulo'][:45]}")
 
-        if download_pdf(s, item["id"], dest):
-            if item.get("img_url") and item.get("img_file"):
-                portadas_dir = subdir / "portadas"
-                portadas_dir.mkdir(exist_ok=True)
-                download_image(s, item["img_url"], portadas_dir / item["img_file"])
-            return "ok"
-        with _print_lock:
-            print(f"      ✗ FALLO [{item['id']}]")
-        return "fail"
+        # Adquirir slot de progreso
+        with _display_lock:
+            slot = next(idx for idx in (0, 1) if _slot_state[idx] is None)
+            _slot_state[slot] = {"name": item["filename"], "downloaded": 0, "total": 0}
+            _redraw(f"↓  {item['nivel']} / {item['sector']} — {item['titulo'][:45]}")
+
+        def on_progress(downloaded: int, total: int) -> None:
+            with _display_lock:
+                _slot_state[slot]["downloaded"] = downloaded
+                _slot_state[slot]["total"]      = total
+                if time.monotonic() - _last_redraw_t >= 0.15:
+                    _redraw()
+
+        ok = download_pdf(s, item["id"], dest, on_progress=on_progress)
+
+        with _display_lock:
+            _slot_state[slot] = None
+            if ok:
+                size_mb = dest.stat().st_size / 1_048_576
+                _redraw(f"  ✓ {item['filename']}  ({size_mb:.1f} MB)")
+                if item.get("img_url") and item.get("img_file"):
+                    portadas_dir = subdir / "portadas"
+                    portadas_dir.mkdir(exist_ok=True)
+                    download_image(s, item["img_url"], portadas_dir / item["img_file"])
+            else:
+                _redraw(f"  ✗ FALLO [{item['id']}]")
+
+        return "ok" if ok else "fail"
 
     ok = fail = 0
     with ThreadPoolExecutor(max_workers=2) as executor:
