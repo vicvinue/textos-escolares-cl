@@ -37,13 +37,13 @@ Ejemplos:
 
 ```bash
 # Solo educación básica
-python3 descargar_catalogo.py --rbd 12345 --password MiClave --nivel basica
+python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel basica
 
 # Solo educación media
-python3 descargar_catalogo.py --rbd 12345 --password MiClave --nivel media
+python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel media
 
 # Solo pre-escolar
-python3 descargar_catalogo.py --rbd 12345 --password MiClave --nivel pre-escolar
+python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel pre-escolar
 ```
 
 ---

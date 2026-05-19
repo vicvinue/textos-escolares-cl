@@ -29,25 +29,25 @@ Por defecto descarga **1° a 6° Básico** (todos los sectores disponibles).
 ### Todo el catálogo (default)
 
 ```bash
-python3 descargar_catalogo.py --rbd 12345 --password MiClave
+python3 descargar_catalogo.py --rbd XXXXX --password MiClave
 ```
 
 ### Solo Pre-Kínder y Kínder
 
 ```bash
-python3 descargar_catalogo.py --rbd 12345 --password MiClave --nivel pre-escolar
+python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel pre-escolar
 ```
 
 ### Solo Educación Básica (1° a 6°)
 
 ```bash
-python3 descargar_catalogo.py --rbd 12345 --password MiClave --nivel basica
+python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel basica
 ```
 
 ### Solo Educación Media (7° Básico a 4° Medio)
 
 ```bash
-python3 descargar_catalogo.py --rbd 12345 --password MiClave --nivel media
+python3 descargar_catalogo.py --rbd XXXXX --password MiClave --nivel media
 ```
 
 ## Estructura de salida
