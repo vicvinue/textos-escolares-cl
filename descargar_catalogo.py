@@ -79,24 +79,16 @@ def login_playwright(rbd: str, password: str) -> dict:
         return cookies
 
 
-def get_select_options(session: requests.Session) -> tuple[dict, dict]:
-    """Obtiene los valores válidos de idNivel e idSector desde el catálogo."""
+def get_select_options(session: requests.Session) -> tuple[dict, dict, str]:
+    """Obtiene niveles, sectores y rutaImagenes desde la página del catálogo."""
     r = session.get(f"{BASE_URL}/home/index")
     print(f"  Catálogo URL: {r.url}  status: {r.status_code}")
 
     soup = BeautifulSoup(r.text, "html.parser")
-
-    # Debug: mostrar todos los selects encontrados
-    all_selects = soup.find_all("select")
-    print(f"  Selects encontrados: {len(all_selects)}")
-    for sel in all_selects:
-        opts = sel.find_all("option")
-        print(f"    id={sel.get('id','?')} name={sel.get('name','?')} — {len(opts)} opciones: {[o.get('value') for o in opts[:4]]}")
-
     niveles  = {}
     sectores = {}
 
-    for sel in all_selects:
+    for sel in soup.find_all("select"):
         sel_id = sel.get("id", "")
         opts = {
             o["value"]: o.get_text(strip=True)
@@ -108,7 +100,28 @@ def get_select_options(session: requests.Session) -> tuple[dict, dict]:
         elif sel_id == "idSector":
             sectores = opts
 
-    return niveles, sectores
+    # Extraer rutaImagenes del JS inline (ej: var rutaImagenes = "2026/";)
+    ruta_imagenes = "2026/"
+    for script in soup.find_all("script"):
+        text = script.string or ""
+        m = re.search(r'var\s+rutaImagenes\s*=\s*["\']([^"\']+)["\']', text)
+        if m:
+            ruta_imagenes = m.group(1)
+            break
+
+    return niveles, sectores, ruta_imagenes
+
+
+def download_image(session: requests.Session, img_url: str, dest: Path) -> None:
+    """Descarga la portada si no existe ya."""
+    if dest.exists():
+        return
+    try:
+        r = session.get(img_url, timeout=30)
+        if r.status_code == 200 and "image" in r.headers.get("Content-Type", ""):
+            dest.write_bytes(r.content)
+    except Exception:
+        pass
 
 
 def fetch_books(session: requests.Session, id_nivel: str, id_sector: str,
@@ -217,7 +230,7 @@ def main():
 
     # ── Obtener opciones de los selects ────────────────────────────────────────
     print("\n=== Leyendo catálogo ===")
-    niveles, sectores = get_select_options(session)
+    niveles, sectores, ruta_imagenes = get_select_options(session)
 
     if not niveles or not sectores:
         print("ERROR: no se encontraron opciones de curso/sector.")
@@ -250,28 +263,39 @@ def main():
             time.sleep(0.5)
 
             for book in books:
-                titulo = book.get("titulo", "sin_titulo")
-                for mat in book.get("materialAsociado", []):
-                    if mat.get("tipoLink") != "DESCARGA":
-                        continue
-                    ext = mat.get("link", "").split(".")[-1].lower()
-                    if ext != "pdf":
-                        continue
+                titulo       = book.get("titulo", "sin_titulo")
+                nombre_img   = book.get("nombreImagen", "")
+                img_stem     = Path(nombre_img).stem  # ej: "LYCME26E1B"
+                img_url      = f"{BASE_URL}/portadas/{ruta_imagenes}{nombre_img}" if nombre_img else ""
+
+                pdfs_en_libro = [m for m in book.get("materialAsociado", [])
+                                 if m.get("tipoLink") == "DESCARGA"
+                                 and m.get("link","").split(".")[-1].lower() == "pdf"]
+
+                for i, mat in enumerate(pdfs_en_libro):
                     mid = str(mat["idMaterialAsociado"])
                     if mid in seen:
                         continue
                     seen.add(mid)
 
-                    tipo = mat.get("tipoMaterialDescripcion", "texto")
-                    base = slugify(tipo)
+                    tipo   = mat.get("tipoMaterialDescripcion", "texto")
                     subdir = UPLOADS_DIR / slugify(label_nivel) / slugify(label_sector)
-                    # Evitar colisión de nombre dentro de la misma carpeta
+
+                    # Nombre basado en código oficial (ej: LYCME26E1B.pdf)
+                    # Si hay >1 PDF por libro, añadir sufijo del tipo
+                    if img_stem:
+                        base = img_stem if len(pdfs_en_libro) == 1 else f"{img_stem}_{slugify(tipo)}"
+                    else:
+                        base = slugify(tipo)
+
+                    # Evitar colisión dentro de la misma carpeta
                     used = {item["filename"] for item in to_download if item["subdir"] == subdir}
                     filename = f"{base}.pdf"
                     n = 2
                     while filename in used:
                         filename = f"{base}_{n}.pdf"
                         n += 1
+
                     to_download.append({
                         "id":       mid,
                         "nivel":    label_nivel,
@@ -280,8 +304,10 @@ def main():
                         "tipo":     tipo,
                         "filename": filename,
                         "subdir":   subdir,
+                        "img_url":  img_url,
+                        "img_file": nombre_img,
                     })
-                    print(f"  + {label_nivel} / {label_sector} / {tipo} — {titulo[:50]} [{mid}]")
+                    print(f"  + {label_nivel} / {label_sector} — {filename}  ({titulo[:45]})")
 
     print(f"\nTotal PDFs encontrados: {len(to_download)}")
     if not to_download:
@@ -306,6 +332,10 @@ def main():
         if download_pdf(session, item["id"], dest):
             size_mb = dest.stat().st_size / 1_048_576
             print(f"      ✓ {item['filename']}  ({size_mb:.1f} MB)")
+            # Descargar portada junto al PDF
+            if item.get("img_url") and item.get("img_file"):
+                img_dest = subdir / item["img_file"]
+                download_image(session, item["img_url"], img_dest)
             ok += 1
         else:
             print(f"      ✗ FALLO [{item['id']}]")
