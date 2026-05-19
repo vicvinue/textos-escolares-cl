@@ -96,6 +96,8 @@ Los textos escolares son propiedad del **Ministerio de Educación de Chile** y s
 
 **No redistribuyas los archivos descargados.** El uso de este script es responsabilidad del usuario y debe enmarcarse en las condiciones de uso del catálogo Mineduc.
 
+**Privacidad:** el script ejecuta todo de forma local en tu equipo. Las credenciales (RBD y contraseña) se usan exclusivamente para autenticarse en el sitio oficial del Mineduc y nunca se almacenan en disco ni se transmiten a ningún servidor externo.
+
 ---
 
 ## Licencia
